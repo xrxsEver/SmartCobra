@@ -1,49 +1,202 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq.Expressions;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class Snake : MonoBehaviour
 {
-    public int xSize ,ySize ;
-
+    public int xSize, ySize;
     public GameObject block;
+    public Material headMaterial, tailMaterial;
+    public Text points;
+    public GameObject gameOverUI;
 
+    private GameObject head;
+    private List<GameObject> tail;
+    private Vector2 dir;
+    private GameObject food;
+    private bool isAlive;
+    private float passedTime, timeBetweenMovements;
+
+    // GameObject folders
+    private GameObject borderFolder;
+    private GameObject snakeFolder;
 
     void Start()
     {
-        createGrid();
+        timeBetweenMovements = 0.2f;
+        dir = Vector2.right;
+        tail = new List<GameObject>();
 
+        // Create folders for organization
+        borderFolder = new GameObject("BorderBlocks");
+        snakeFolder = new GameObject("SnakeParts");
+
+        createGrid();
+        createPlayer();
+        spawnFood();
+        block.SetActive(false);
+        isAlive = true;
+    }
+
+    private Vector2 getRandomPos()
+    {
+        return new Vector2(Random.Range(-xSize / 2 + 1, xSize / 2), Random.Range(-ySize / 2 + 1, ySize / 2));
+    }
+
+    private bool containedInSnake(Vector2 pos)
+    {
+        bool isInHead = pos == (Vector2)head.transform.position;
+        bool isInTail = tail.Exists(item => (Vector2)item.transform.position == pos);
+        return isInTail || isInHead;
+    }
+
+    private void spawnFood()
+    {
+        Vector2 spawnPos = getRandomPos();
+        while (containedInSnake(spawnPos))
+        {
+            spawnPos = getRandomPos();
+        }
+        food = Instantiate(block);
+        food.transform.position = new Vector3(spawnPos.x, spawnPos.y, 0);
+        food.SetActive(true);
+        // Randomize food color
+        food.GetComponent<MeshRenderer>().material.color = new Color(Random.value, Random.value, Random.value);
+    }
+
+    private void createPlayer()
+    {
+        head = Instantiate(block, snakeFolder.transform);
+        head.GetComponent<MeshRenderer>().material = headMaterial;
     }
 
     private void createGrid()
     {
-        for (int x = 0;x<=xSize;x++)
+        for (int x = 0; x <= xSize; x++)
         {
-            GameObject borderBottom = Instantiate(block) as GameObject;
-            borderBottom.GetComponent<Transform>().position = new Vector3(x-xSize/2, -ySize/2, 0);           
-            
-            GameObject borderTop = Instantiate(block) as GameObject;
-            borderTop.GetComponent<Transform>().position = new Vector3(x-xSize/2, ySize-ySize/2, 0);
-
-        }   
-        
-        
-        for (int y = 0;y<=ySize;y++)
-        {
-            GameObject borderRight = Instantiate(block) as GameObject;
-            borderRight.GetComponent<Transform>().position = new Vector3(-xSize/2, y-(ySize/2), 0);           
-            
-            GameObject borderLeft = Instantiate(block) as GameObject;
-            borderLeft.GetComponent<Transform>().position = new Vector3(xSize-(xSize/2),y-(ySize/2), 0);
-
+            createBlock(new Vector3(x - xSize / 2, -ySize / 2, 0));
+            createBlock(new Vector3(x - xSize / 2, ySize - ySize / 2, 0));
         }
+        for (int y = 0; y <= ySize; y++)
+        {
+            createBlock(new Vector3(-xSize / 2, y - ySize / 2, 0));
+            createBlock(new Vector3(xSize - xSize / 2, y - ySize / 2, 0));
+        }
+    }
 
+    private void createBlock(Vector3 position)
+    {
+        GameObject borderBlock = Instantiate(block, borderFolder.transform);
+        borderBlock.transform.position = position;
     }
 
     void Update()
     {
-        
+        handleInput();
+        passedTime += Time.deltaTime;
+        if (passedTime >= timeBetweenMovements && isAlive)
+        {
+            passedTime = 0;
+            moveSnake();
+        }
+    }
+
+    private void handleInput()
+    {
+        if (Input.GetKey(KeyCode.DownArrow) && dir != Vector2.up)
+        {
+            dir = Vector2.down;
+        }
+        else if (Input.GetKey(KeyCode.UpArrow) && dir != Vector2.down)
+        {
+            dir = Vector2.up;
+        }
+        else if (Input.GetKey(KeyCode.RightArrow) && dir != Vector2.left)
+        {
+            dir = Vector2.right;
+        }
+        else if (Input.GetKey(KeyCode.LeftArrow) && dir != Vector2.right)
+        {
+            dir = Vector2.left;
+        }
+    }
+
+    private void moveSnake()
+    {
+        Vector3 newPosition = head.transform.position + new Vector3(dir.x, dir.y, 0);
+
+        if (checkCollision(newPosition))
+        {
+            gameOver();
+            return;
+        }
+
+        if (newPosition == food.transform.position)
+        {
+            growSnake(newPosition);
+            spawnFood();
+            points.text = "Points: " + tail.Count;
+        }
+        else
+        {
+            moveHead(newPosition);
+        }
+    }
+
+    private bool checkCollision(Vector3 newPosition)
+    {
+        if (newPosition.x >= xSize / 2 || newPosition.x <= -xSize / 2 ||
+            newPosition.y >= ySize / 2 || newPosition.y <= -ySize / 2)
+        {
+            return true;
+        }
+
+        foreach (var item in tail)
+        {
+            if (item.transform.position == newPosition)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void growSnake(Vector3 newPosition)
+    {
+        GameObject newTile = Instantiate(block, snakeFolder.transform);
+        newTile.SetActive(true);
+        newTile.transform.position = food.transform.position;
+        DestroyImmediate(food);
+        head.GetComponent<MeshRenderer>().material = tailMaterial;
+        tail.Add(head);
+        head = newTile;
+        head.GetComponent<MeshRenderer>().material = headMaterial;
+    }
+
+    private void moveHead(Vector3 newPosition)
+    {
+        if (tail.Count > 0)
+        {
+            head.GetComponent<MeshRenderer>().material = tailMaterial;
+            tail.Add(head);
+            head = tail[0];
+            head.GetComponent<MeshRenderer>().material = headMaterial;
+            tail.RemoveAt(0);
+        }
+        head.transform.position = newPosition;
+    }
+
+    private void gameOver()
+    {
+        isAlive = false;
+        gameOverUI.SetActive(true);
+    }
+
+    public void Restart()
+    {
+        SceneManager.LoadScene(0);
     }
 }
