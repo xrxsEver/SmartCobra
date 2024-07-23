@@ -10,6 +10,7 @@ public class Snake : MonoBehaviour
     public GameObject block;
     public Material headMaterial, tailMaterial;
     public Text points;
+    public Text timerText;
     public GameObject gameOverUI;
 
     private GameObject head;
@@ -17,7 +18,8 @@ public class Snake : MonoBehaviour
     private Vector2 dir;
     private GameObject food;
     private bool isAlive;
-    private float passedTime, timeBetweenMovements;
+    private float movementTimer, timeBetweenMovements;
+    private float elapsedTime; 
 
     // GameObject folders
     private GameObject borderFolder;
@@ -38,6 +40,12 @@ public class Snake : MonoBehaviour
         spawnFood();
         block.SetActive(false);
         isAlive = true;
+        elapsedTime = 0f;
+
+        if (timerText == null)
+        {
+            Debug.LogError("Timer Text UI element is not assigned.");
+        }
     }
 
     private Vector2 getRandomPos()
@@ -94,12 +102,20 @@ public class Snake : MonoBehaviour
 
     void Update()
     {
-        handleInput();
-        passedTime += Time.deltaTime;
-        if (passedTime >= timeBetweenMovements && isAlive)
+        if (isAlive)
         {
-            passedTime = 0;
-            moveSnake();
+            // Update elapsed time
+            elapsedTime += Time.deltaTime;
+            UpdateTimerDisplay(); 
+
+            movementTimer += Time.deltaTime;
+            if (movementTimer >= timeBetweenMovements)
+            {
+                movementTimer = 0;
+                moveSnake();
+            }
+
+            handleInput();
         }
     }
 
@@ -193,6 +209,14 @@ public class Snake : MonoBehaviour
     {
         isAlive = false;
         gameOverUI.SetActive(true);
+    }
+
+    private void UpdateTimerDisplay()
+    {
+        if (timerText != null) // Check if timerText is assigned
+        {
+            timerText.text = "Time: " + Mathf.FloorToInt(elapsedTime).ToString();
+        }
     }
 
     public void Restart()
