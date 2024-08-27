@@ -878,7 +878,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   xSize: 8
-  ySize: 7
+  ySize: 8
   block: {fileID: 855372340}
   headMaterial: {fileID: 2100000, guid: 1922e2900fe3e0d45852f3c6611ae616, type: 2}
   tailMaterial: {fileID: 2100000, guid: a12b78ac50e11774da6af8879d6dfecf, type: 2}
